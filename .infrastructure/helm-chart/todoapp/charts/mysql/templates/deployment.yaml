@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: {{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}
+          ports:
+            - containerPort: 3306

@@ -1,0 +1,4 @@
+mysql:
+  image:
+    repository: mysql
+    tag: "8.0"

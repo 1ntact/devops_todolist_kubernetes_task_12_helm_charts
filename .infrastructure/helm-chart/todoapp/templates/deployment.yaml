@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todoapp
+  template:
+    metadata:
+      labels:
+        app: todoapp
+    spec:
+      containers:
+        - name: todoapp
+          image: {{ .Values.todoapp.image.repository }}:{{ .Values.todoapp.image.version }}
+          ports:
+            - containerPort: 8080

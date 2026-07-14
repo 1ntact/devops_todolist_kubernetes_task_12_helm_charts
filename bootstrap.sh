@@ -1,20 +1,37 @@
 #!/bin/bash
-kubectl apply -f .infrastructure/mysql/ns.yml
-kubectl apply -f .infrastructure/mysql/configMap.yml
-kubectl apply -f .infrastructure/mysql/secret.yml
-kubectl apply -f .infrastructure/mysql/service.yml
-kubectl apply -f .infrastructure/mysql/statefulSet.yml
+set -euo pipefail
 
-kubectl apply -f .infrastructure/app/ns.yml
-kubectl apply -f .infrastructure/app/pv.yml
-kubectl apply -f .infrastructure/app/pvc.yml
-kubectl apply -f .infrastructure/app/secret.yml
-kubectl apply -f .infrastructure/app/configMap.yml
-kubectl apply -f .infrastructure/app/clusterIp.yml
-kubectl apply -f .infrastructure/app/nodeport.yml
-kubectl apply -f .infrastructure/app/hpa.yml
-kubectl apply -f .infrastructure/app/deployment.yml
+CHART_DIR=".infrastructure/helm-chart"
+VALUES_FILE="$CHART_DIR/values.yml"
+RELEASE_NAME="todoapp"
+NAMESPACE="todoapp"
 
-# Install Ingress Controller
+if ! command -v kubectl >/dev/null 2>&1; then
+  echo "kubectl is required but was not found in PATH." >&2
+  exit 1
+fi
+
+if ! command -v helm >/dev/null 2>&1; then
+  echo "helm is required but was not found in PATH." >&2
+  exit 1
+fi
+
+if ! kubectl cluster-info >/dev/null 2>&1; then
+  echo "Creating Kubernetes cluster with kind..."
+  kind create cluster --config cluster.yml
+fi
+
+echo "Installing ingress controller prerequisites..."
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-# kubectl apply -f .infrastructure/ingress/ingress.yml
+kubectl wait --namespace ingress-nginx \
+  --for=condition=available \
+  --timeout=300s deployment/ingress-nginx-controller
+
+echo "Building Helm dependencies..."
+helm dependency build "$CHART_DIR"
+
+echo "Deploying the todoapp Helm chart..."
+helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
+  --namespace "$NAMESPACE" \
+  --create-namespace \
+  -f "$VALUES_FILE"

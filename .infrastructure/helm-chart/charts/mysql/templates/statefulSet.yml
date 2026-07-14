@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: mysql
-  namespace: mysql
+  name: {{.Chart.Name}}
+  namespace: {{.Values.namespace}}
 spec:
   selector:
     matchLabels:
       app: mysql
-  replicas: 2
-  serviceName: mysql
+  replicas: {{ .Values.statefulSet.replicas }}
+  serviceName: {{.Chart.Name}}
   template:
     metadata:
       labels:
         app: mysql
     spec:
       containers:
-      - name: mysql
-        image: mysql:8.0
+      - name: {{.Chart.Name}}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         env:
         - name: MYSQL_ROOT_PASSWORD
           valueFrom:
@@ -36,7 +36,7 @@ spec:
         - name: MYSQL_DATABASE
           value: app_db
         ports:
-        - name: mysql
+        - name: {{.Chart.Name}}
           containerPort: 3306
         volumeMounts:
         - name: data
@@ -46,8 +46,8 @@ spec:
           mountPath: /docker-entrypoint-initdb.d
         resources:
           requests:
-            cpu: 500m
-            memory: 1Gi
+            cpu: {{.Values.resources.requests.cpu}}
+            memory: {{.Values.resources.requests.memory}}
         livenessProbe:
           exec:
             command: ["mysqladmin", "ping"]
@@ -74,19 +74,19 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
-                  - key: "app"
-                    operator: In
+                  - key: {{ index .Values.affinity 0 "key" | quote }}
+                    operator: {{ index .Values.affinity 0 "operator" | quote }}
                     values:
-                    - mysql
+                    - {{ index .Values.affinity 0 "values" 0 | quote }}
               topologyKey: "kubernetes.io/hostname"
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: "app"
-                    operator: In
+                  - key: {{ index .Values.affinity 0 "key" | quote }}
+                    operator: {{ index .Values.affinity 0 "operator" | quote }}
                     values:
-                    - "mysql"
+                    - {{ index .Values.affinity 0 "values" 0 | quote }}
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -94,4 +94,4 @@ spec:
       accessModes: ["ReadWriteOnce"]
       resources:
         requests:
-          storage: 2Gi
+          storage: {{ .Values.volumeResources.requests.storage }}

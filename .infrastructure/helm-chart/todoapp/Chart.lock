@@ -3,4 +3,4 @@ dependencies:
   repository: file://charts/mysql
   version: 0.1.0
 digest: sha256:7bdc73510c1b8f6f4d4a09e0740dc3aa812edbd644410f9a4337e4b1ea9439f9
-generated: "2026-07-15T00:12:52.503783013+02:00"
+generated: "2026-07-15T00:42:31.21571278+02:00"

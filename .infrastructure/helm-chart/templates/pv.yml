@@ -1,14 +1,12 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: {{.Chart.Name}}-data
-  namespace: {{.Values.namespace}}
+  name: {{ .Chart.Name }}-pv
 spec:
-  storageClassName: standard
-  persistentVolumeReclaimPolicy: Delete
-  accessModes:
-    - {{ index .Values.todoapp.pv.accessModes 0 }}
   capacity:
-    storage: {{ .Values.todoapp.pv.capacity }}
+    storage: {{ .Values.todoapp.pv.capacity | quote }}
+  accessModes:
+    {{- toYaml .Values.todoapp.pv.accessModes | nindent 4 }}
+  persistentVolumeReclaimPolicy: Retain
   hostPath:
-    path: /data/
+    path: "/mnt/data/todoapp"

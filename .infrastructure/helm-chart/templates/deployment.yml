@@ -1,88 +1,57 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{.Chart.Name}}
-  namespace: {{.Values.namespace}}
+  name: {{ .Chart.Name }}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Chart.Name }}
 spec:
+  replicas: {{ .Values.todoapp.hpa.minReplicas }}
   strategy:
-    type: {{.Values.todoapp.strategy.type}}
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
+    type: {{ .Values.todoapp.strategy.type }}
   selector:
     matchLabels:
-      app: todoapp
+      app: {{ .Chart.Name }}
   template:
     metadata:
       labels:
-        app: todoapp
+        app: {{ .Chart.Name }}
     spec:
-      serviceAccountName: {{.Values.todoapp.serviceAccountName}}
+      serviceAccountName: {{ .Values.todoapp.serviceAccountName }}
       containers:
-      - name: {{ .Chart.Name }}
-        image: {{ .Values.todoapp.image.repository }}:{{ .Values.todoapp.image.version | quote }}
-        volumeMounts:
-        - name: data
-          mountPath: /app/data
-        - name: app-secrets-volume
-          mountPath: "/app/secrets"
-          readOnly: true
-        - name: app-config-volume
-          mountPath: "/app/configs"
-          readOnly: true
-        resources:
-          requests:
-            memory: {{.Values.todoapp.resources.requests.memory}}
-            cpu: {{.Values.todoapp.resources.requests.cpu}}
-          limits:
-            memory: {{.Values.todoapp.resources.limits.memory}}
-            cpu: {{.Values.todoapp.resources.limits.cpu}}
-        env:
-        - name: PYTHONUNBUFFERED
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: PYTHONUNBUFFERED
-        {{- range .Values.todoapp.env_secrets }}
-        - name: {{.name}}
-          valueFrom:
-            secretKeyRef:
-              name: {{.valueFrom.secretKeyRef.name}}
-              key: {{.valueFrom.secretKeyRef.key}}
-        {{- end }}
-        ports:
-        - containerPort: 8080
-        livenessProbe:
-          httpGet:
-            path: api/health
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 5
-        readinessProbe:
-          httpGet:
-            path: api/ready
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: todoapp-container
+          image: "{{ .Values.todoapp.image.repository }}:{{ .Values.todoapp.image.version }}"
+          resources:
+            limits:
+              cpu: {{ .Values.todoapp.resources.limits.cpu | quote }}
+              memory: {{ .Values.todoapp.resources.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.todoapp.resources.requests.cpu | quote }}
+              memory: {{ .Values.todoapp.resources.requests.memory | quote }}
+          # Динамический маппинг переменных окружения из env_secrets через range
+          env:
+            {{- range .Values.todoapp.env_secrets }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Chart.Name }}-secret
+                  key: {{ .valueFrom.secretKeyRef.key }}
+            {{- end }}
+          volumeMounts:
+            - name: todoapp-storage
+              mountPath: /app/data
       volumes:
-      - name: data
-        persistentVolumeClaim:
-          claimName: pvc-data
-      - name: app-secrets-volume
-        secret:
-          secretName: app-secret
-      - name: app-config-volume
-        configMap:
-          name: app-config
+        - name: todoapp-storage
+          persistentVolumeClaim:
+            claimName: {{ .Chart.Name }}-pvc
       affinity:
         nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 1
-            preference:
-              matchExpressions:
-              {{- range .Values.todoapp.nodeaffinity }}
-              - key: {{ .key | quote }}
-                operator: {{ .operator | quote }}
-                values:
-                - {{ index .values 0 | quote }}
-              {{- end }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  {{- range .Values.todoapp.nodeaffinity }}
+                  - key: {{ .key }}
+                    operator: {{ .operator }}
+                    values:
+                      {{- toYaml .values | nindent 22 }}
+                  {{- end }}

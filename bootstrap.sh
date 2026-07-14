@@ -30,6 +30,13 @@ kubectl wait --namespace ingress-nginx \
 echo "Building Helm dependencies..."
 helm dependency build "$CHART_DIR"
 
+for node in $(kubectl get nodes -o name | sed 's#^node/##'); do
+  if kubectl get node "$node" -o jsonpath='{.metadata.labels.app}' 2>/dev/null | grep -q '^mysql$'; then
+    echo "Tainting node $node with app=mysql:NoSchedule"
+    kubectl taint nodes "$node" app=mysql:NoSchedule --overwrite 2>/dev/null || true
+  fi
+done
+
 echo "Deploying the todoapp Helm chart..."
 helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
   --namespace "$NAMESPACE" \
